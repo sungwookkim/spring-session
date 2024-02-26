@@ -1,0 +1,10 @@
+server:
+  port: 9090
+
+spring:
+  mongodb:
+    host: localhost
+    port: 27017
+    username: root
+    password: 1234
+    auth-database: admin
