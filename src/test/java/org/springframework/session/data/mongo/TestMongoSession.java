@@ -7,6 +7,7 @@ import org.springframework.session.UuidSessionIdGenerator;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import java.util.Set;
 
 /**
@@ -109,6 +110,10 @@ public class TestMongoSession implements Session {
     @Override
     public boolean isExpired() {
         return this.mongoSession.isExpired();
+    }
+
+    public void setExpireAt(Date expireAt) {
+        this.mongoSession.setExpireAt(expireAt);
     }
 
     public MongoSession getMongoSession() {

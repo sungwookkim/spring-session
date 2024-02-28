@@ -23,8 +23,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class SpringSessionRestTest {
-    private final static Logger logger = LoggerFactory.getLogger(SpringSessionRestTest.class);
+public class SpringSessionRestTests {
+    private final static Logger logger = LoggerFactory.getLogger(SpringSessionRestTests.class);
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;

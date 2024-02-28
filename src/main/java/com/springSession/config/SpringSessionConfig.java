@@ -5,27 +5,43 @@ import com.mongodb.MongoCredential;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.server.Cookie;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.ApplicationEventMulticaster;
+import org.springframework.context.event.EventListener;
+import org.springframework.context.event.SimpleApplicationEventMulticaster;
+import org.springframework.context.support.AbstractApplicationContext;
+import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.ResolvableType;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
+import org.springframework.http.ResponseCookie;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.config.annotation.web.http.SpringHttpSessionConfiguration;
 import org.springframework.session.data.mongo.MongoIndexedSessionRepository;
 import org.springframework.session.data.mongo.config.annotation.web.http.MongoHttpSessionConfiguration;
-import org.springframework.session.web.http.CookieHttpSessionIdResolver;
-import org.springframework.session.web.http.HeaderHttpSessionIdResolver;
-import org.springframework.session.web.http.HttpSessionIdResolver;
+import org.springframework.session.events.SessionCreatedEvent;
+import org.springframework.session.events.SessionDeletedEvent;
+import org.springframework.session.events.SessionDestroyedEvent;
+import org.springframework.session.events.SessionExpiredEvent;
+import org.springframework.session.web.http.*;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.context.support.GenericWebApplicationContext;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * <pre>
@@ -178,6 +194,53 @@ public class SpringSessionConfig {
         @Override
         public MongoIndexedSessionRepository mongoSessionRepository(MongoOperations sessionMongoTemplate) {
             return super.mongoSessionRepository(sessionMongoTemplate);
+        }
+    }
+
+    /**
+     * <pre>
+     *     {@link MongoIndexedSessionRepository#setApplicationEventPublisher(ApplicationEventPublisher)} 메서드를 통해 이벤트 개시 Bean이 설정된다.
+     *
+     *     위 클래스는 {@link ApplicationEventPublisherAware} 구현체이기에 ApplicationContextAwareProcessor#invokeAwareInterfaces(Object)에서
+     *     {@link ApplicationEventPublisher} 구현체를 Bean으로 주입 받는다.
+     *     
+     *     참조
+     *     {@link AbstractApplicationContext} <- {@link GenericApplicationContext} <- {@link GenericWebApplicationContext}
+     *     {@link AbstractApplicationContext#publishEvent(Object, ResolvableType)} 메서드에서 이벤트를 개시한다.
+     *
+     *     이벤트 개시 인터페이스인 {@link AbstractApplicationContext#applicationEventMulticaster}의 구현체는 {@link AbstractApplicationContext#initApplicationEventMulticaster()}
+     *     메서드에서 초기화 하는데 {@link AbstractApplicationContext#APPLICATION_EVENT_MULTICASTER_BEAN_NAME} 이름으로 {@link ApplicationEventMulticaster} 구현된 Bean이 있으면 해당 Bean으로 초기화 하고
+     *     없으면 {@link SimpleApplicationEventMulticaster} 구현체로 초기화를 한다.
+     * </pre>
+     */
+    @Component
+    static class SpringSessionEvent {
+        private final static Logger logger = LoggerFactory.getLogger(SpringSessionEvent.class);
+
+        @EventListener
+        void createEvent(SessionCreatedEvent sessionCreatedEvent) {
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+            HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
+
+            logger.info("create session id : {}", sessionCreatedEvent.getSessionId());
+        }
+
+        @EventListener
+        void deleteEvent(SessionDeletedEvent sessionDeletedEvent) {
+            logger.info("delete session id : {}", sessionDeletedEvent.getSessionId());
+        }
+
+        @EventListener
+        void destroyedEvent(SessionDestroyedEvent sessionDestroyedEvent) {
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+            HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
+
+            logger.info("destroy session id : {}", sessionDestroyedEvent.getSessionId());
+        }
+
+        @EventListener
+        void expiredEvent(SessionExpiredEvent sessionExpiredEvent) {
+            logger.info("expire session id : {}", sessionExpiredEvent.getSessionId());
         }
     }
 }
